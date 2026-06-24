@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudFunc — Async Serverless Dashboard</title>
+  <meta name="description" content="CloudFunc is a mini FaaS platform dashboard. Register custom functions with your own handler code, invoke them asynchronously, and track job results in real time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Animated background orbs -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- ─── Navbar ─────────────────────────────── -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">☁️</div>
+      <span class="brand-name">CloudFunc</span>
+      <span class="brand-badge">Phase 3</span>
+    </div>
+    <div class="nav-status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Checking services...</span>
+    </div>
+    <button class="btn-icon" id="refreshAllBtn" title="Refresh all data">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- ─── Main Layout ──────────────────────────── -->
+  <main class="main-layout">
+
+    <!-- ─── LEFT SIDEBAR ─────────────────────── -->
+    <aside class="sidebar">
+
+      <!-- Register Function -->
+      <section class="card" id="registerCard">
+        <div class="card-header">
+          <div class="card-icon register-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <h2 class="card-title">Register Function</h2>
+        </div>
+
+        <form id="registerForm" class="form-group">
+          <div class="input-row">
+            <div class="input-field">
+              <label for="funcName">Function Name</label>
+              <input id="funcName" type="text" placeholder="e.g. greet" autocomplete="off" />
+            </div>
+            <div class="input-field">
+              <label for="funcOwner">Owner</label>
+              <input id="funcOwner" type="text" placeholder="alice" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label for="funcImage">
+              Docker Image
+              <span class="label-hint">optional — defaults to function-runner:latest</span>
+            </label>
+            <input id="funcImage" type="text" placeholder="function-runner:latest" autocomplete="off" />
+          </div>
+
+          <!-- Handler Code editor -->
+          <div class="input-field">
+            <div class="handler-label-row">
+              <label for="funcHandler">Handler Code <span class="required-star">*</span></label>
+              <div class="template-pills">
+                <button type="button" class="pill" id="tplMath" title="Math template">Math</button>
+                <button type="button" class="pill" id="tplGreet" title="Greeting template">Greet</button>
+                <button type="button" class="pill" id="tplHttp" title="HTTP fetch template">Fetch</button>
+                <button type="button" class="pill" id="tplTimeout" title="Timeout template">Timeout</button>
+              </div>
+            </div>
+            <div class="code-editor-wrap">
+              <div class="code-lang-badge">JS</div>
+              <textarea
+                id="funcHandler"
+                class="code-editor"
+                rows="10"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="// handler.js — must export an async function
+// module.exports = async (input) => { ... }"
+              >module.exports = async (input) => {
+  const { a = 0, b = 0 } = input;
+  return { sum: a + b, product: a * b };
+};</textarea>
+            </div>
+            <div class="handler-hint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Must export an <code>async (input) =&gt; result</code> function via <code>module.exports</code>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="registerBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            Register Function
+          </button>
+        </form>
+        <div id="registerResult" class="result-box hidden"></div>
+      </section>
+
+      <!-- Invoke Function -->
+      <section class="card" id="invokeCard">
+        <div class="card-header">
+          <div class="card-icon invoke-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </div>
+          <h2 class="card-title">Invoke Function</h2>
+        </div>
+
+        <form id="invokeForm" class="form-group">
+          <div class="input-field">
+            <label for="invokeName">Function Name</label>
+            <input id="invokeName" type="text" placeholder="e.g. greet" autocomplete="off" />
+          </div>
+
+          <!-- Generic JSON input — no hardcoded fields -->
+          <div class="input-field">
+            <div class="handler-label-row">
+              <label for="invokeInput">Input <span class="label-hint">JSON object passed to your handler</span></label>
+            </div>
+            <div class="code-editor-wrap">
+              <div class="code-lang-badge">JSON</div>
+              <textarea
+                id="invokeInput"
+                class="code-editor code-editor-sm"
+                rows="5"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder='{ "a": 10, "b": 20 }'
+              >{
+  "a": 10,
+  "b": 20
+}</textarea>
+            </div>
+          </div>
+
+          <div class="input-field">
+            <label for="invokeToken">Auth Token</label>
+            <input id="invokeToken" type="text" placeholder="my-token" value="my-token" autocomplete="off" />
+          </div>
+
+          <button type="submit" class="btn btn-invoke" id="invokeBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Invoke & Track
+          </button>
+        </form>
+        <div id="invokeResult" class="result-box hidden"></div>
+      </section>
+
+      <!-- Poll Job -->
+      <section class="card" id="pollCard">
+        <div class="card-header">
+          <div class="card-icon poll-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h2 class="card-title">Poll Job</h2>
+        </div>
+        <div class="form-group">
+          <div class="input-field">
+            <label for="pollJobId">Job ID</label>
+            <input id="pollJobId" type="text" placeholder="paste job UUID here..." autocomplete="off" />
+          </div>
+          <button class="btn btn-poll" id="pollBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            Check Status
+          </button>
+        </div>
+        <div id="pollResult" class="result-box hidden"></div>
+      </section>
+
+    </aside>
+
+    <!-- ─── RIGHT CONTENT ──────────────────── -->
+    <div class="content-area">
+
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-value" id="fnCount">—</div>
+          <div class="stat-label">Functions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔄</div>
+          <div class="stat-value" id="jobsQueued">—</div>
+          <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value" id="jobsCompleted">—</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">❌</div>
+          <div class="stat-value" id="jobsFailed">—</div>
+          <div class="stat-label">Failed</div>
+        </div>
+      </div>
+
+      <!-- Architecture Overview -->
+      <section class="card arch-card">
+        <div class="card-header">
+          <div class="card-icon arch-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </div>
+          <h2 class="card-title">System Architecture</h2>
+          <span class="arch-tag">handler injected at runtime via docker exec</span>
+        </div>
+        <div class="arch-flow">
+          <div class="arch-node client-node">
+            <div class="arch-node-icon">🖥️</div>
+            <div class="arch-node-label">Client<br/><small>UI / cURL</small></div>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node gateway-node">
+            <div class="arch-node-icon">🚦</div>
+            <div class="arch-node-label">Gateway<br/><small>:5001</small></div>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node queue-node">
+            <div class="arch-node-icon">🐇</div>
+            <div class="arch-node-label">RabbitMQ<br/><small>+ handler_code</small></div>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node worker-node">
+            <div class="arch-node-icon">⚙️</div>
+            <div class="arch-node-label">Worker<br/><small>3 concurrent</small></div>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node container-node">
+            <div class="arch-node-icon">🐳</div>
+            <div class="arch-node-label">Container Mgr<br/><small>injects handler.js</small></div>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node runner-node">
+            <div class="arch-node-icon">▶️</div>
+            <div class="arch-node-label">Runner<br/><small>:4000</small></div>
+          </div>
+        </div>
+        <div class="arch-bottom">
+          <div class="arch-node registry-node">
+            <div class="arch-node-icon">🗄️</div>
+            <div class="arch-node-label">Registry + PostgreSQL — stores handler_code<br/><small>:8080 / :5433</small></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Registered Functions Table -->
+      <section class="card" id="functionsCard">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+          </div>
+          <h2 class="card-title">Registered Functions</h2>
+          <button class="btn-icon btn-sm" id="refreshFunctionsBtn" title="Refresh">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="functionsTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Owner</th>
+                <th>Image</th>
+                <th>Registered At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="functionsBody">
+              <tr><td colspan="5" class="empty-state">Loading functions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Live Job Feed -->
+      <section class="card" id="jobsCard">
+        <div class="card-header">
+          <div class="card-icon jobs-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </div>
+          <h2 class="card-title">Live Job Feed</h2>
+          <div class="pulse-badge">LIVE</div>
+        </div>
+        <div id="jobFeed" class="job-feed">
+          <div class="empty-state-center">No jobs yet — invoke a function to see real-time results here.</div>
+        </div>
+      </section>
+
+    </div><!-- /content-area -->
+  </main>
+
+  <!-- Toast Notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

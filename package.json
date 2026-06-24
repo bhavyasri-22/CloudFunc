@@ -1,0 +1,13 @@
+  "name": "cloudfunc",
+  "version": "1.0.0",
+  "description": "CloudFunc — Async Serverless Execution Platform",
+  "main": "test.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.5",
+    "axios": "^1.7.9",
+    "dockerode": "^4.0.2"
+  }
+}

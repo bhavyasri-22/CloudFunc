@@ -1,0 +1,14 @@
+{
+  "name": "registry",
+  "version": "1.0.0",
+  "description": "Function Registry service",
+  "main": "registry.js",
+  "scripts": {
+    "start": "node registry.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "pg": "^8.17.2"
+  }
+}
